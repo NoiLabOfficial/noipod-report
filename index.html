@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoiPod 브레이니멀 리포트</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <style>
+        :root {
+            --pdf-scale: 1;
+        }
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f0f2f5;
+            transition: none !important;
+        }
+        body.pdf-mode {
+            --pdf-scale: 0.92;
+            background-color: #ffffff !important;
+        }
+        .gradient-text {
+            background: linear-gradient(to right, #4f46e5, #0ea5e9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .report-card {
+            background-color: white;
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            transition: all 0.3s ease;
+        }
+        body.pdf-mode .report-card {
+            padding: 1.75rem;
+            box-shadow: none;
+            border-radius: 1rem;
+        }
+        .section-title {
+            font-size: 1.875rem;
+            font-weight: 800;
+            color: #111827;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+        }
+        body.pdf-mode .section-title {
+            font-size: 1.55rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.6rem;
+        }
+        .brainimal-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1.25rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            background: linear-gradient(to right, #ecfccb, #d9f99d);
+            color: #4d7c0f;
+            border: 1px solid #a3e635;
+        }
+        body.pdf-mode .brainimal-badge {
+            padding: 0.4rem 1rem;
+            font-size: 0.9rem;
+        }
+        .highlight-box {
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 1.5rem;
+        }
+        body.pdf-mode .highlight-box {
+            padding: 1.1rem;
+            border-radius: 0.85rem;
+        }
+        .optional-tag {
+            background-color: #e0e7ff;
+            color: #4338ca;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            margin-left: 0.5rem;
+        }
+        body.pdf-mode .optional-tag {
+            font-size: 0.65rem;
+        }
+        .modal { transition: opacity 0.3s ease; }
+        .animate-scale-in { animation: scaleIn 0.3s cubic-bezier(0.165, 0.840, 0.440, 1.000) forwards; }
+        @keyframes scaleIn {
+            0% { transform: scale(0.95); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .swipe-container { overflow: hidden; position: relative; }
+        .swipe-track { display: flex; transition: transform 0.3s ease-out; }
+        .swipe-slide { flex-shrink: 0; width: 100%; }
+        .swipe-dots { text-align: center; margin-top: 1rem; }
+        .swipe-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #cbd5e1; margin: 0 4px; cursor: pointer; transition: background-color 0.3s; }
+        .swipe-dot.active { background-color: #4f46e5; }
+        
+        @media (min-width: 1024px) {
+            .lg-grid-revert .swipe-track { display: grid; transform: none !important; }
+            .lg-grid-revert .swipe-slide { width: auto; }
+            .lg-stack-revert .swipe-track { display: block; transform: none !important; }
+            .lg-stack-revert .swipe-track > .swipe-slide:not(:last-child) { margin-bottom: 2rem; }
+            .lg-stack-revert .swipe-slide { width: auto; padding: 0 !important; }
+            .lg-stack-revert .swipe-dots { display: none; }
+        }
+
+        body.pdf-mode .swipe-container .swipe-track {
+            display: grid !important;
+            gap: 1rem;
+            transform: none !important;
+        }
+        body.pdf-mode .swipe-container .swipe-slide {
+            width: auto !important;
+            padding: 0 !important;
+        }
+        body.pdf-mode .swipe-dots {
+            display: none !important;
+        }
+
+        .premium-lock { position: relative; overflow: hidden; flex-grow: 1; display: flex; flex-direction: column; }
+        .premium-overlay { position: absolute; inset: 0; background-color: rgba(226, 232, 240, 0.7); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 0.75rem; color: #475569; font-weight: 700; cursor: pointer; z-index: 10; border-radius: 1rem; text-align: center; display: none; }
+        .premium-overlay.active { display: flex; }
+        .trend-btn { background-color: #f1f5f9; color: #475569; font-size: 0.875rem; font-weight: 600; padding: 0.25rem 0.75rem; border-radius: 9999px; margin-left: auto; display: inline-flex; align-items: center; gap: 0.25rem; }
+        .trend-btn:hover { background-color: #e2e8f0; }
+        .trend-container { border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem; margin-top: 2rem; display: none; }
+        .metric-toggle-group { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+        .metric-toggle { padding: 0.5rem 1rem; border-radius: 9999px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; display: flex; align-items: center; gap: 0.5rem; }
+        .metric-toggle.inactive { background-color: #f1f5f9; color: #64748b; }
+        .metric-toggle.inactive:hover { background-color: #e2e8f0; }
+        .fallback-text-container { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; min-height: 40px; background-color: #f8fafc; border-radius: 0.5rem; color: #94a3b8; font-weight: 500; }
+    
+        #pdfLoader {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            display: none;
+        }
+        #pdfLoader div {
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 500;
+            text-align: center;
+        }
+        #pdfLoader svg {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 1rem;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .page-break-pdf {
+            display: none;
+            page-break-after: always;
+            height: 1px;
+            visibility: hidden;
+        }
+        body.pdf-mode .page-break-pdf {
+            display: block;
+        }
+        body.pdf-mode p,
+        body.pdf-mode li,
+        body.pdf-mode span,
+        body.pdf-mode button,
+        body.pdf-mode .text-slate-600,
+        body.pdf-mode .text-slate-500 {
+            font-size: calc(0.97rem * var(--pdf-scale));
+        }
+        body.pdf-mode h2 { font-size: 2.1rem; }
+        body.pdf-mode h3 { font-size: 1.55rem; }
+        body.pdf-mode h4 { font-size: 1.2rem; }
+        body.pdf-mode h5 { font-size: 1rem; }
+        body.pdf-mode h6 { font-size: 0.95rem; }
+        body.pdf-mode footer { font-size: 0.7rem; }
+        body.pdf-mode footer p { font-size: 0.7rem; }
+        body.pdf-mode .trend-container {
+            padding: 1.1rem;
+            margin-top: 1.25rem;
+        }
+        body.pdf-mode .metric-toggle {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.8rem;
+        }
+        body.pdf-mode .premium-overlay { display: none !important; }
+        body.pdf-mode #reportContent {
+            max-width: 794px;
+            margin: 0 auto;
+        }
+        body.pdf-mode .profile-photo {
+            width: 120px !important;
+            height: 120px !important;
+        }
+        body.pdf-mode .report-header-info {
+            gap: 1rem !important;
+        }
+        body.pdf-mode .badge-row {
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        body.pdf-mode .age-info {
+            gap: 0.75rem;
+        }
+        body.pdf-mode canvas {
+            max-height: 220px;
+        }
+        @media print {
+            body { background-color: #ffffff !important; }
+            #reportContent { max-width: 794px; margin: 0 auto; }
+            .report-card { box-shadow: none; }
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-6 md:p-10">
+    <div class="max-w-4xl mx-auto">
+        <div class="report-card" id="reportContent"> 
+            <section class="mb-12">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-8 items-center">
+                    <div class="md:col-span-3 flex flex-col sm:flex-row items-start sm:items-center space-y-6 sm:space-y-0 sm:space-x-8 report-header-info">
+                        <div class="profile-photo w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden shadow-lg border-4 border-white flex-shrink-0">
+                            <img src="https://placehold.co/200x200/E2E8F0/475569?text=..." alt="사용자 프로필 사진" class="w-full h-full object-cover" id="profileImage">
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-lg" id="reportInfo"></p>
+                            <h2 class="text-4xl font-extrabold text-slate-800 mt-1"><span id="userName"></span> <span class="text-2xl font-medium">님</span></h2>
+                            <div class="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-slate-600 age-info" id="ageInfoContainer"></div>
+                            <div class="mt-6 flex items-center gap-4 badge-row">
+                                <div class="brainimal-badge"><span id="brainimalType"></span></div>
+                                <button id="openModalBtn" class="text-sm text-indigo-600 font-semibold hover:underline flex items-center space-x-1"><i data-lucide="help-circle" class="w-4 h-4"></i><span>모든 타입 보기</span></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="actionButtons" class="md:col-span-1 flex md:flex-col items-center justify-end md:justify-center gap-4">
+                        <button id="shareBtn" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors"><i data-lucide="share-2" class="w-5 h-5"></i><span>공유하기</span></button>
+                        <button id="saveBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors"><i data-lucide="save" class="w-5 h-5"></i><span>저장하기</span></button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-12">
+                <h3 class="section-title"><span class="mr-3">🧠</span>두뇌 나이 분석</h3>
+                <div id="brain-analysis-container" class="swipe-container lg-grid-revert">
+                    <div class="swipe-track lg:grid lg:grid-cols-2 lg:gap-8">
+                        <div class="swipe-slide p-1 lg:p-0"><div class="highlight-box h-full"><h4 class="text-xl font-bold text-slate-700 mb-4 flex items-center">핵심 두뇌 능력<button id="toggleBrainTrendBtn" class="trend-btn premium-feature"><i data-lucide="line-chart" class="w-4 h-4"></i><span>변화 추이 확인</span></button></h4><canvas id="brainChart"></canvas></div></div>
+                        <div class="swipe-slide p-1 lg:p-0"><div class="highlight-box flex flex-col h-full"><h4 class="text-xl font-bold text-slate-700 mb-4 flex items-center">뇌 활성도 맵<span class="optional-tag">프리미엄</span></h4><div class="premium-lock"><div id="brain-map-container" class="space-y-2"></div><div class="mt-6 pt-4 border-t border-slate-200"><div class="flex justify-between items-center text-xs font-semibold text-slate-600 mb-1"><span>낮은 혈류량</span><span>높은 혈류량</span></div><div class="w-full h-4 rounded-full" style="background: linear-gradient(to right, #3b82f6, #a5b4fc, white, #fde047, #f87171);"></div><p class="text-center text-xs text-slate-500 mt-2 leading-relaxed">혈류량이 높을수록 해당 전전두엽 영역이 활성화됨을 나타내며, <br>안정시엔 적당히 낮을수록, 집중시엔 적당히 높을수록 좋습니다.</p></div><div class="premium-overlay"><i data-lucide="lock" class="w-10 h-10"></i><span>프리미엄 전용 콘텐츠</span></div></div></div></div>
+                    </div>
+                    <div class="swipe-dots lg:hidden"></div>
+                </div>
+                <div id="brainTrendContainer" class="trend-container"><div class="flex justify-between items-center mb-4 flex-wrap gap-y-2"><div id="brainTrendToggles" class="metric-toggle-group"></div><p class="text-xs text-slate-500">✅: 목표 달성! &nbsp; ⚠️: 목표 근접 &nbsp; 📉: 분발 필요</p></div><canvas id="brainTrendChart"></canvas></div>
+            </section>
+            
+            <section class="mb-12">
+                <h3 class="section-title"><span class="mr-3">🏃‍♂️</span>신체 나이 분석</h3>
+                <div id="physical-analysis-container" class="swipe-container lg-grid-revert">
+                    <div class="swipe-track lg:grid lg:grid-cols-2 lg:gap-8">
+                        <div class="swipe-slide p-1 lg:p-0"><div class="highlight-box h-full"><h4 class="text-xl font-bold text-slate-700 mb-4 flex items-center">핵심 신체 능력<button id="togglePhysicalTrendBtn" class="trend-btn premium-feature"><i data-lucide="line-chart" class="w-4 h-4"></i><span>변화 추이 확인</span></button></h4><canvas id="physicalChart"></canvas></div></div>
+                        <div class="swipe-slide p-1 lg:p-0"><div class="highlight-box flex flex-col h-full"><h4 class="text-xl font-bold text-slate-700 mb-4 flex items-center">피지컬 디테일<span class="optional-tag">프리미엄</span></h4><div class="premium-lock"><div class="grid grid-cols-2 gap-3 text-center my-auto" id="physicalDetailsContainer"></div><div class="premium-overlay"><i data-lucide="lock" class="w-10 h-10"></i><span>프리미엄 전용 콘텐츠</span></div></div></div></div>
+                    </div>
+                    <div class="swipe-dots lg:hidden"></div>
+                </div>
+                 <div id="physicalTrendContainer" class="trend-container"><div class="flex justify-between items-center mb-4 flex-wrap gap-y-2"><div id="physicalTrendToggles" class="metric-toggle-group"></div><p class="text-xs text-slate-500">✅: 목표 달성! &nbsp; ⚠️: 목표 근접 &nbsp; 📉: 분발 필요</p></div><canvas id="physicalTrendChart"></canvas></div>
+            </section>
+
+            <div class="page-break-pdf"></div>
+
+            <section class="mb-12">
+                <h3 class="section-title"><span class="mr-3">📊</span>뇌지컬 종합 평가</h3>
+                <div class="bg-gradient-to-br from-indigo-50 to-sky-50 p-4 lg:p-8 rounded-2xl swipe-container lg-stack-revert" id="summary-container">
+                    <div class="swipe-track">
+                        <div class="swipe-slide"><p class="text-xl font-bold leading-relaxed text-slate-800" id="brainimalSummary"></p></div>
+                        <div class="swipe-slide"><div class="highlight-box bg-white/70 h-full"><h4 class="text-lg font-bold text-slate-700 mb-3 flex items-center"><span class="mr-2">🔍</span>상세 분석</h4><p class="text-slate-600 mb-6" id="brainimalDescription"></p><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h5 class="font-bold text-green-700 mb-2">✅ 장점</h5><ul class="space-y-2 list-disc list-inside text-slate-600" id="advantagesList"></ul></div><div><h5 class="font-bold text-amber-700 mb-2">⚠️ 단점</h5><ul class="space-y-2 list-disc list-inside text-slate-600" id="disadvantagesList"></ul></div></div></div></div>
+                        <div class="swipe-slide"><div class="highlight-box bg-white/70 h-full flex flex-col"><h4 class="text-lg font-bold text-slate-700 mb-3 flex items-center"><span class="mr-2">✨</span>밀착 피드백</h4><div class="premium-lock"><p class="text-slate-600 mb-6" id="feedbackIntro"></p><div class="space-y-6" id="feedbackContent"></div><div class="premium-overlay"><i data-lucide="lock" class="w-10 h-10"></i><span>프리미엄 전용 콘텐츠</span></div></div></div></div>
+                    </div>
+                    <div class="swipe-dots"></div>
+                </div>
+            </section>
+            
+            <section class="mb-12">
+                <h3 class="section-title"><span class="mr-3">👑</span>추천 롤모델</h3>
+                <div class="swipe-container lg-grid-revert" id="rolemodel-container">
+                    <div class="swipe-track lg:grid lg:grid-cols-5 lg:gap-8 lg:items-start">
+                        <div class="swipe-slide p-1 lg:p-0 lg:col-span-3"><div class="highlight-box h-full bg-slate-50"><h4 class="text-xl font-bold text-slate-700 mb-4" id="roleModelName"></h4><p class="text-slate-600 leading-relaxed" id="roleModelDescription"></p></div></div>
+                        <div class="swipe-slide p-1 lg:p-0 lg:col-span-2"><div class="highlight-box h-full"><h4 class="text-xl font-bold text-slate-700 mb-4">주요 업적 및 발자취</h4><ul class="space-y-3" id="roleModelAchievements"></ul></div></div>
+                    </div>
+                    <div class="swipe-dots lg:hidden"></div>
+                </div>
+            </section>
+        </div>
+
+        <footer class="text-center mt-8 text-slate-500 text-xs">
+            <p>본 리포트는 사용자의 NoiPod 테스트 결과를 바탕으로 한 분석 자료이며, 의사의 진단과 같은 의료적 소견이 아닙니다.</p>
+             <div class="mt-6 pt-6 border-t border-slate-200">
+                 <div class="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-8">
+                      <div class="flex items-center"><img src="https://noilabofficial.github.io/noipod-report/Noi%20Lab%20%EB%A1%9C%EA%B3%A0(%EA%B0%80%EB%A1%9C).png" alt="Noi Lab Logo" class="h-6" onerror="this.alt='Noi Lab Logo'; this.onerror=null; this.src='https://placehold.co/100x24/ffffff/94a3b8?text=Noi+Lab';"></div>
+                      <p class="text-slate-500 text-xs">서울특별시 광진구 능동로 81, 더라움펜트하우스 3층 7호</p>
+                      <a href="#" class="flex items-center gap-1 text-slate-500 hover:text-indigo-600"><i data-lucide="instagram" class="w-4 h-4"></i><span class="text-xs">noi_lab.official</span></a>
+                 </div>
+             </div>
+            <p class="mt-4">© 2025 NoiPod Inc. All Rights Reserved.</p>
+        </footer>
+    </div>
+    
+    <div id="pdfLoader">
+        <div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
+            PDF 생성 중...
+        </div>
+    </div>
+
+    <div id="premiumModal" class="modal fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 relative animate-scale-in text-center">
+             <button id="closePremiumModalBtn" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800"><i data-lucide="x" class="w-6 h-6"></i></button>
+             <div class="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center mx-auto mb-4">
+                 <i data-lucide="gem" class="w-8 h-8 text-indigo-600"></i>
+             </div>
+             <h3 class="text-xl font-bold text-slate-800 mb-2">프리미엄 구독 후 확인 가능합니다.</h3>
+             <p class="text-slate-500">구독 후 더 많은 혜택을 누려보세요!</p>
+        </div>
+    </div>
+    <div id="brainimalModal" class="modal fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-8 relative animate-scale-in">
+            <button id="closeModalBtn" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <h3 class="text-2xl font-bold text-slate-800 mb-6">12가지 브레이니멀 타입</h3>
+            <ul class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                 <li class="flex items-start"> <span class="text-xl mr-3">🐯</span><div><p class="font-bold">전략적인 호랑이</p><p class="text-sm text-slate-500">목표를 향해 전략적으로 움직이는 리더 타입</p></div></li><li class="flex items-start"> <span class="text-xl mr-3">🦅</span><div><p class="font-bold">통찰력 있는 독수리</p><p class="text-sm text-slate-500">넓은 시야로 문제의 본질을 꿰뚫어봐요</p></div></li><li class="flex items-start"> <span class="text-xl mr-3">🐬</span><div><p class="font-bold">명석한 돌고래</p><p class="text-sm text-slate-500">높은 지능과 학습 능력으로 빠르게 성장해요</p></div></li><li class="flex items-start"> <span class="text-xl mr-3">🐆</span><div><p class="font-bold">빠른 판단의 치타</p><p class="text-sm text-slate-500">순간적인 판단력과 실행력이 매우 뛰어나요</p></div></li><li class="flex items-start"> <span class="text-xl mr-3">🦊</span><div><p class="font-bold">균형 잡힌 여우</p><p class="text-sm text-slate-500">상황 판단과 적응력이 뛰어나고 다재다능해요</p></div></li><li class="flex items-start"> <span class="text-xl mr-3">🐻</span><div><p class="font-bold">끈기있는 곰</p><p class="text-sm text-slate-500">한번 시작한 일은 끝까지 해내는 우직함이 있어요</p></div></li><li class="flex items-start"> <span class="text-xl mr-3">🐺</span><div><p class="font-bold">창의적인 늑대</p><p class="text-sm text-slate-500">독창적인 아이디어가 많고 문제 해결 방식이 새로워요</p></div></li><li class="flex items-start"> <span class="text-xl mr-3">🐨</span><div><p class="font-bold">침착한 코알라</p><p class="text-sm text-slate-500">어떤 상황에서도 평정심을 잃지 않아요</p></div></li><li class="flex items-start"> <span class="text-xl mr-3">🦁</span><div><p class="font-bold">대담한 사자</p><p class="text-sm text-slate-500">결단력과 추진력을 바탕으로 그룹을 이끌어요</p></div></li><li class="flex items-start"> <span class="text-xl mr-3">🐱</span><div><p class="font-bold">섬세한 고양이</p><p class="text-sm text-slate-500">디테일을 놓치지 않는 꼼꼼함을 가졌어요</p></div></li><li class="flex items-start"> <span class="text-xl mr-3">🐶</span><div><p class="font-bold">사회성 좋은 강아지</p><p class="text-sm text-slate-500">친화력이 좋아 사람들과 쉽게 어울려요</p></div></li><li class="flex items-start"> <span class="text-xl mr-3">🦉</span><div><p class="font-bold">집중하는 부엉이</p><p class="text-sm text-slate-500">한 번 몰입하면 엄청난 집중력을 발휘해요</p></div></li>
+            </ul>
+        </div>
+    </div>
+    <div id="shareModal" class="modal fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 relative animate-scale-in"><button id="closeShareModalBtn" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800"><i data-lucide="x" class="w-6 h-6"></i></button><h3 class="text-2xl font-bold text-slate-800 mb-6 text-center">공유하기</h3><div class="flex justify-around items-center"><button class="flex flex-col items-center space-y-2 text-slate-600 hover:text-indigo-600"><div class="bg-yellow-300 w-16 h-16 rounded-full flex items-center justify-center"><i data-lucide="message-circle" class="w-8 h-8 text-black"></i></div><span>카카오톡</span></button><button class="flex flex-col items-center space-y-2 text-slate-600 hover:text-indigo-600"><div class="bg-slate-200 w-16 h-16 rounded-full flex items-center justify-center"><i data-lucide="smartphone" class="w-8 h-8 text-slate-800"></i></div><span>SMS</span></button><button class="flex flex-col items-center space-y-2 text-slate-600 hover:text-indigo-600"><div class="bg-slate-200 w-16 h-16 rounded-full flex items-center justify-center"><i data-lucide="link" class="w-8 h-8 text-slate-800"></i></div><span>URL 복사</span></button></div></div>
+    </div>
+    
+    <script>
+    const userData = {
+      "userID": "user-a1b2c3d4e5", 
+      "isPremium": true,
+      "userName": "김노이",
+      "reportCount": 10, "reportDate": "2025.10.20", "birth": "1996-05-20", "brainAge": 26, "physicalAge": 27, "brainimalType": "🦊 균형 잡힌 여우",
+      "brainScores": { "기억력": 85, "이해력": 80, "집중력": 90, "판단력": 86 },
+      "brainScoreHistory": [
+          {"기억력": 35, "이해력": 70, "집중력": 68, "판단력": 72}, {"기억력": 68, "이해력": 72, "집중력": 70, "판단력": 75}, {"기억력": 70, "이해력": 71, "집중력": 72, "판단력": 74}, {"기억력": 72, "이해력": 75, "집중력": 75, "판단력": 78}, {"기억력": 75, "이해력": 74, "집중력": 78, "판단력": 77}, {"기억력": 78, "이해력": 78, "집중력": 80, "판단력": 82}, {"기억력": 80, "이해력": 76, "집중력": 85, "판단력": 81}, {"기억력": 82, "이해력": 78, "집중력": 88, "판단력": 79}, {"기억력": 85, "이해력": 80, "집중력": 90, "판단력": 86}
+      ],
+      "brainScoreTarget": {"기억력": 90, "이해력": 80, "집중력": 92, "판단력": 85},
+      "brainMapImages": { "restingUrl": "https://noilabofficial.github.io/noipod-report/김노이10_R.png", "concentratingUrl": "https://noilabofficial.github.io/noipod-report/김노이10_C.png" },
+      "physicalScores": { "지구력": 80, "순발력": 88, "유연성": 72, "밸런스": 92 },
+      "physicalScoreHistory": [
+          {"지구력": 68, "순발력": 72, "유연성": 65, "밸런스": 75}, {"지구력": 70, "순발력": 75, "유연성": 68, "밸런스": 78}, {"지구력": 72, "순발력": 78, "유연성": 67, "밸런스": 80}, {"지구력": 75, "순발력": 80, "유연성": 70, "밸런스": 82}, {"지구력": 74, "순발력": 82, "유연성": 71, "밸런스": 85}, {"지구력": 78, "순발력": 85, "유연성": 70, "밸런스": 88}, {"지구력": 77, "순발력": 86, "유연성": 72, "밸런스": 89}, {"지구력": 79, "순발력": 88, "유연성": 71, "밸런스": 90}, {"지구력": 80, "순발력": 88, "유연성": 72, "밸런스": 92}
+      ],
+      "physicalScoreTarget": {"지구력": 85, "순발력": 92, "유연성": 75, "밸런스": 95},
+      "physicalDetails": { "height": 178, "weight": 72, "bmi": 22.7, "avgHeartRate": null, "bmr": 1550, "bloodPressure": "115/75", "oxygenSaturation": null, "stressLevel": "낮음"},
+      "brainimalSummary": "와, {userName}님! 축하드려요! 🎉 <span class='gradient-text font-extrabold'>'{brainimalType}'</span> 타입이시네요. 두뇌와 신체 능력이 조화롭게 발달해서, 실제 나이보다 두뇌는 <span class='text-indigo-600 font-extrabold'>{brainAgeDiff}살</span>, 신체는 <span class='text-sky-600 font-extrabold'>{physicalAgeDiff}살</span>이나 젊게 측정되었어요!", "brainimalDescription": "'균형 잡힌 여우' 타입은 어떤 상황에서도 빠르게 적응하고 최적의 해결책을 찾아내는 능력이 탁월해요. 아마 직장이나 일상생활에서 '센스있다', '일 잘한다'는 칭찬을 자주 들으실 거예요. 복잡한 문제를 만나도 여러 정보를 종합해 핵심을 꿰뚫어 보고, 여우처럼 민첩한 신체 능력으로 재빠르게 대처하는 모습은 주변 사람들에게 깊은 신뢰감을 준답니다.", "advantages": [ "<strong>멀티태스킹:</strong> 여러 일을 동시에 처리하면서도 중요한 부분을 놓치지 않아요.", "<strong>위기관리:</strong> 예상치 못한 돌발 상황이 생겨도 당황하지 않고 침착하게 해결해요." ], "disadvantages": [ "<strong>에너지 소모:</strong> 다재다능한 만큼, 여러 곳에 에너지를 분산시켜 쉽게 지칠 수 있어요.", "<strong>선택의 어려움:</strong> 여러 가능성을 동시에 고려하다 보니, 가끔 중요한 결정을 내리는 데 시간이 걸릴 수 있어요." ], "feedbackIntro": "김노이님의 장점을 극대화하고 단점을 보완하기 위한 생활 습관과 트레이닝을 추천해 드릴게요.",
+      "feedbackContent": { "dailyEfforts": [ "<strong>'선택과 집중' 연습하기:</strong> 하루 시작 전, 가장 중요한 일 3가지를 정해 우선 처리하는 습관은 에너지 소모를 줄이고 판단력을 더 날카롭게 만들어 줄 거예요.", "<strong>10분 명상으로 뇌 재충전:</strong> 점심 식사 후 10분 정도의 짧은 명상은 복잡한 머리를 식히고 오후 업무 효율을 높여줘요." ], "recommendedTraining": "현재의 균형감각을 한 단계 발전시키기 위해 '전략적 사고 게임' 세션을 추천해요. 체스처럼 여러 수를 내다봐야 하는 게임은 판단력과 집중력을 동시에 강화시켜, '선택의 어려움'을 극복하는 데 큰 도움이 될 거예요." },
+      "roleModelName": "G-DRAGON", "roleModelDescription": "G-DRAGON은 '균형 잡힌 여우' 타입이 현대의 트렌드를 어떻게 창조하고 이끌어가는지를 보여주는 가장 상징적인 인물입니다. 그는 음악 프로듀싱, 작사, 작곡은 물론 패션과 시각 예술까지 경계 없이 넘나들며 다재다능함의 정수를 보여줍니다. 이는 예측불허한 대중의 취향을 정확히 꿰뚫고, 늘 새로운 결과물로 센세이션을 일으키는 여우의 기민함과 일치합니다. 장르를 파괴하는 그의 실험 정신과 자신만의 브랜드를 구축한 감각은 '균형 잡힌 여우' 타입이 가진 잠재력의 무한한 가능성을 증명합니다.", "roleModelAchievements": [ { "title": "솔로 아티스트 성공", "description": "'Heartbreaker', 'Coup d'Etat' 등 앨범 연이어 히트" }, { "title": "전방위 프로듀서", "description": "BIGBANG 및 본인 앨범 대부분의 곡 작사/작곡" }, { "title": "패션 브랜드 론칭", "description": "'피스마이너스원'으로 글로벌 패션계에 영향력 행사" }, { "title": "K-POP 아이콘", "description": "독보적인 스타일로 전 세계 대중문화 트렌드 선도" } ]
+    };
+    
+    let brainTrendChartInstance, physicalTrendChartInstance;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons();
+        renderReport(userData);
+        setupSwipeable('#brain-analysis-container');
+        setupSwipeable('#physical-analysis-container');
+        setupSwipeable('#summary-container');
+        setupSwipeable('#rolemodel-container');
+        setupPremiumFeatures();
+        
+        const brainimalModal = document.getElementById('brainimalModal');
+        const shareModal = document.getElementById('shareModal');
+        setupModal(brainimalModal, 'openModalBtn', ['closeModalBtn']);
+        setupModal(shareModal, 'shareBtn', ['closeShareModalBtn']);
+
+        const saveButton = document.getElementById('saveBtn');
+        const pdfLoader = document.getElementById('pdfLoader');
+        saveButton.addEventListener('click', () => generatePdf(pdfLoader));
+        
+        window.onclick = (event) => {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.add('hidden');
+            }
+        };
+
+    });
+
+    function calculateAge(birthDateString) {
+        const birthDate = new Date(birthDateString);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) { age--; }
+        return age;
+    }
+    
+    function handleImageError(imgElement, fallbackText) {
+        const container = imgElement.parentNode;
+        const textElement = document.createElement('div');
+        textElement.className = 'fallback-text-container';
+        textElement.textContent = fallbackText;
+        container.replaceChild(textElement, imgElement);
+    }
+    
+    function handleProfileImageError(imgElement, userName, placeholderUrl) {
+        const tryJpgUrl = `https://noilabofficial.github.io/noipod-report/${userName}_프로필.jpg`;
+        if (imgElement.src !== tryJpgUrl) {
+            imgElement.src = tryJpgUrl;
+        } else {
+            imgElement.src = placeholderUrl;
+        }
+    }
+
+    function renderReport(data) {
+        const actualAge = calculateAge(data.birth);
+        document.getElementById('reportInfo').textContent = `제 ${data.reportCount}회차 뇌지컬 리포트 (${data.reportDate})`;
+        document.getElementById('userName').textContent = data.userName;
+        
+        const profileImgElement = document.getElementById('profileImage');
+        const profileImgBaseUrl = `https://noilabofficial.github.io/noipod-report/`;
+        const profileImgPngUrl = `${profileImgBaseUrl}${data.userName}_프로필.png`;
+        const placeholderUrl = `https://placehold.co/200x200/E2E8F0/475569?text=${data.userName.substring(0,1)}`;
+        profileImgElement.src = profileImgPngUrl;
+        profileImgElement.alt = `${data.userName}님의 프로필 사진`;
+        profileImgElement.onerror = () => handleProfileImageError(profileImgElement, data.userName, placeholderUrl);
+
+        document.getElementById('brainimalType').textContent = data.brainimalType;
+        const brainAgeDiff = actualAge - data.brainAge;
+        const physicalAgeDiff = actualAge - data.physicalAge;
+        document.getElementById('ageInfoContainer').innerHTML = `<span>만 ${actualAge}세</span><span>두뇌 나이: <span class="font-bold text-indigo-600">${data.brainAge}세</span> <span class="font-bold ${brainAgeDiff >= 0 ? 'text-green-600' : 'text-red-500'}">(${brainAgeDiff >= 0 ? `-${brainAgeDiff}` : `+${Math.abs(brainAgeDiff)}`})</span></span><span>신체 나이: <span class="font-bold text-sky-600">${data.physicalAge}세</span> <span class="font-bold ${physicalAgeDiff >= 0 ? 'text-green-600' : 'text-red-500'}">(${physicalAgeDiff >= 0 ? `-${physicalAgeDiff}` : `+${Math.abs(physicalAgeDiff)}`})</span></span>`;
+        
+        const brainMapContainer = document.getElementById('brain-map-container');
+        let brainMapHTML = `<div class="grid grid-cols-3 gap-x-2 items-center text-center mb-2"><div></div><div class="font-bold text-slate-500 text-sm">안정시</div><div class="font-bold text-slate-500 text-sm">집중시</div></div>`;
+        const brainMapBaseUrl = `https://noilabofficial.github.io/noipod-report/`;
+        const userName = data.userName;
+        const latestReportNum = data.reportCount;
+        for (let i = latestReportNum - 1; i <= latestReportNum; i++) {
+            if (i <= 0) continue;
+            const isLatest = (i === latestReportNum);
+            const restingImgUrl = `${brainMapBaseUrl}${userName}${i}_R.png`;
+            const concentratingImgUrl = `${brainMapBaseUrl}${userName}${i}_C.png`;
+            brainMapHTML += `<div class="grid grid-cols-3 gap-x-2 items-center mb-2"><div class="font-bold text-slate-600 text-sm text-center">${i}회차</div><img src="${restingImgUrl}" class="rounded-lg w-4/5 aspect-square object-cover bg-black mx-auto ${isLatest ? 'border-2 border-indigo-500' : ''}" alt="안정시 ${i}회차" onerror="handleImageError(this, '추가 검사 필요')"><img src="${concentratingImgUrl}" class="rounded-lg w-4/5 aspect-square object-cover bg-black mx-auto ${isLatest ? 'border-2 border-orange-500' : ''}" alt="집중시 ${i}회차" onerror="handleImageError(this, '추가 검사 필요')"></div>`;
+        }
+        brainMapContainer.innerHTML = brainMapHTML;
+        createRadarChart('brainChart', Object.keys(data.brainScores), Object.values(data.brainScores));
+
+        const physicalDetailsContainer = document.getElementById('physicalDetailsContainer');
+        const physicalDetailsMap = {
+            height: { label: "키", unit: "cm" },
+            weight: { label: "몸무게", unit: "kg" },
+            bmi: { label: "BMI", unit: "" },
+            avgHeartRate: { label: "평균 심박수", unit: "bpm" },
+            bmr: { label: "기초 대사량", unit: "kcal" },
+            bloodPressure: { label: "혈압", unit: "" },
+            oxygenSaturation: { label: "산소포화도", unit: "%" },
+            stressLevel: { label: "스트레스 지수", unit: "" }
+        };
+
+        let detailsHTML = '';
+        Object.keys(physicalDetailsMap).forEach(key => {
+            const value = data.physicalDetails ? data.physicalDetails[key] : null;
+            if (value !== null && value !== undefined) {
+                detailsHTML += `<div class="bg-slate-50 p-2 rounded-lg flex flex-col justify-center h-full"><p class="text-xs text-slate-500">${physicalDetailsMap[key].label}</p><p class="text-lg font-bold text-slate-800 mt-1">${value}<span class="text-sm font-normal">${physicalDetailsMap[key].unit}</span></p></div>`;
+            } else {
+                detailsHTML += `<div class="bg-slate-50 p-2 rounded-lg flex flex-col justify-center h-full"><p class="text-xs text-slate-500">${physicalDetailsMap[key].label}</p><div class="fallback-text-container my-auto">추가 검사 필요</div></div>`;
+            }
+        });
+        physicalDetailsContainer.innerHTML = detailsHTML;
+        
+        createRadarChart('physicalChart', Object.keys(data.physicalScores), Object.values(data.physicalScores));
+
+        document.getElementById('brainimalSummary').innerHTML = data.brainimalSummary.replace('{userName}', data.userName).replace('{brainimalType}', data.brainimalType).replace('{brainAgeDiff}', brainAgeDiff).replace('{physicalAgeDiff}', physicalAgeDiff);
+        document.getElementById('brainimalDescription').textContent = data.brainimalDescription;
+        document.getElementById('advantagesList').innerHTML = data.advantages.map(item => `<li>${item}</li>`).join('');
+        document.getElementById('disadvantagesList').innerHTML = data.disadvantages.map(item => `<li>${item}</li>`).join('');
+        document.getElementById('feedbackIntro').textContent = data.feedbackIntro.replace('김지수', data.userName);
+        if (data.feedbackContent) { document.getElementById('feedbackContent').innerHTML = `<div><h5 class="font-bold text-slate-800 mb-3">🏃‍♀️ 생활 속 노력</h5><ul class="space-y-3 text-slate-700">${data.feedbackContent.dailyEfforts.map(item => `<li class="flex items-start"><span class="mr-3 text-lg">✅</span><span>${item}</span></li>`).join('')}</ul></div><div><h5 class="font-bold text-slate-800 mb-3">🧠 추천 트레이닝</h5><p class="text-slate-700">${data.feedbackContent.recommendedTraining}</p></div>`; }
+        document.getElementById('roleModelName').textContent = `균형 잡힌 여우의 끝판왕: ${data.roleModelName}`;
+        document.getElementById('roleModelDescription').textContent = data.roleModelDescription;
+        document.getElementById('roleModelAchievements').innerHTML = data.roleModelAchievements.map(item => `<li class="flex items-start"><span class="mr-3 text-indigo-500 mt-1"><i data-lucide="check-square" class="w-5 h-5"></i></span><div><p class="font-bold text-slate-800">${item.title}</p><p class="text-sm text-slate-500">${item.description}</p></div></li>`).join('');
+        lucide.createIcons();
+    }
+
+    function createRadarChart(elementId, labels, myData) {
+        const ctx = document.getElementById(elementId).getContext('2d');
+        const avgData = new Array(myData.length).fill(70);
+        
+        const allScores = Object.values(myData);
+        let minScore = Math.min(...allScores);
+        let suggestedMin = 40;
+        if (minScore < 40) {
+            suggestedMin = Math.floor(minScore / 20) * 20;
+        }
+
+        const colors = (elementId === 'brainChart') ? { my: { bg: 'rgba(79, 70, 229, 0.2)', border: 'rgba(79, 70, 229, 1)' }, avg: { bg: 'rgba(148, 163, 184, 0.2)', border: 'rgba(100, 116, 139, 1)' } } : { my: { bg: 'rgba(14, 165, 233, 0.2)', border: 'rgba(14, 165, 233, 1)' }, avg: { bg: 'rgba(148, 163, 184, 0.2)', border: 'rgba(100, 116, 139, 1)' } };
+        new Chart(ctx, { type: 'radar', data: { labels: labels, datasets: [{ label: '내 점수', data: myData, backgroundColor: colors.my.bg, borderColor: colors.my.border, borderWidth: 3 }, { label: '동나이대 평균', data: avgData, backgroundColor: colors.avg.bg, borderColor: colors.avg.border, borderWidth: 2, borderDash: [3, 3] }] }, 
+            options: { 
+                maintainAspectRatio: false,
+                scales: { 
+                    r: { 
+                        suggestedMin: suggestedMin, 
+                        suggestedMax: 100, 
+                        pointLabels: { font: { size: 14, weight: 'bold' } }, 
+                        ticks: { backdropColor: 'rgba(255, 255, 255, 0.75)', stepSize: 20 } 
+                    } 
+                }, 
+                plugins: { legend: { position: 'bottom' } } 
+            } 
+        });
+    }
+    
+    function setupPremiumFeatures() {
+        const premiumModal = document.getElementById('premiumModal');
+        setupModal(premiumModal, null, ['closePremiumModalBtn']);
+
+        const premiumLocks = document.querySelectorAll('.premium-lock');
+        const premiumButtons = document.querySelectorAll('.trend-btn.premium-feature');
+
+        if (!userData.isPremium) {
+            premiumLocks.forEach(lock => {
+                const overlay = lock.querySelector('.premium-overlay');
+                if (overlay) {
+                    overlay.classList.add('active');
+                    overlay.addEventListener('click', () => premiumModal.classList.remove('hidden'));
+                }
+            });
+            premiumButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    premiumModal.classList.remove('hidden');
+                });
+            });
+        } else {
+             document.getElementById('toggleBrainTrendBtn').addEventListener('click', () => toggleTrendChart('brain'));
+             document.getElementById('togglePhysicalTrendBtn').addEventListener('click', () => toggleTrendChart('physical'));
+        }
+    }
+
+    function toggleTrendChart(type) {
+        const container = document.getElementById(`${type}TrendContainer`);
+        const chartInstance = (type === 'brain') ? brainTrendChartInstance : physicalTrendChartInstance;
+        const isVisible = container.style.display === 'block';
+
+        if (isVisible) {
+            container.style.display = 'none';
+        } else {
+            container.style.display = 'block';
+            if (chartInstance) {
+                const toggles = container.querySelectorAll('.metric-toggle');
+                chartInstance.data.datasets.forEach((dataset, index) => {
+                    chartInstance.setDatasetVisibility(index, true);
+                    toggles[index].classList.remove('inactive');
+                    toggles[index].style.backgroundColor = dataset.borderColor;
+                    toggles[index].style.color = 'white';
+                });
+                chartInstance.update();
+            } else {
+                if (type === 'brain') {
+                    brainTrendChartInstance = createLineChart('brain', userData.brainScoreHistory, userData.brainScoreTarget);
+                } else {
+                    physicalTrendChartInstance = createLineChart('physical', userData.physicalScoreHistory, userData.physicalScoreTarget);
+                }
+            }
+        }
+    }
+
+    function createLineChart(type, historyData, targetData) {
+        const containerId = `${type}TrendContainer`;
+        const chartId = `${type}TrendChart`;
+        const togglesId = `${type}TrendToggles`;
+        const togglesContainer = document.getElementById(togglesId);
+        
+        const labels = historyData.map((_, index) => `${userData.reportCount - historyData.length + index + 1}회차`).concat('목표');
+        const metricKeys = Object.keys(historyData[0]);
+        const colors = (type === 'brain') 
+            ? ['#4f46e5', '#3b82f6', '#14b8a6', '#8b5cf6'] 
+            : ['#0ea5e9', '#059669', '#f59e0b', '#ef4444'];
+
+        const datasets = metricKeys.map((key, index) => {
+            const history = historyData.map(d => d[key]);
+            const target = targetData[key];
+            const dataWithTarget = history.concat(target);
+            return {
+                label: key,
+                data: dataWithTarget,
+                borderColor: colors[index % colors.length],
+                backgroundColor: colors[index % colors.length] + '33',
+                tension: 0.3,
+                borderWidth: 3,
+                pointRadius: 4,
+                pointBackgroundColor: colors[index % colors.length],
+                hidden: false,
+                segment: {
+                    borderDash: (ctx) => (ctx.p1DataIndex === history.length ? [6, 6] : undefined),
+                    borderColor: (ctx) => {
+                        if (ctx.p1DataIndex === history.length && ctx.p0 && ctx.p1) {
+                            const gradient = ctx.chart.ctx.createLinearGradient(ctx.p0.x, 0, ctx.p1.x, 0);
+                            gradient.addColorStop(0, colors[index % colors.length]);
+                            gradient.addColorStop(1, 'rgba(156, 163, 175, 0.7)');
+                            return gradient;
+                        }
+                        return undefined;
+                    }
+                },
+                pointBackgroundColor: (ctx) => (ctx.dataIndex === history.length ? '#ffffff' : colors[index % colors.length]),
+                pointBorderColor: (ctx) => (ctx.dataIndex === history.length ? 'rgba(156, 163, 175, 0.7)' : colors[index % colors.length]),
+                pointBorderWidth: (ctx) => (ctx.dataIndex === history.length ? 3 : 0),
+                pointRadius: (ctx) => (ctx.dataIndex === history.length ? 6 : 4)
+            };
+        });
+        
+        const allScores = historyData.flatMap(d => Object.values(d));
+        let minScore = Math.min(...allScores);
+        let suggestedMin = 40;
+        if (minScore < 40) {
+            suggestedMin = Math.floor(minScore / 10) * 10;
+        }
+
+        const ctx = document.getElementById(chartId).getContext('2d');
+        const chart = new Chart(ctx, { 
+            type: 'line', 
+            data: { labels, datasets }, 
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                scales: { y: { min: suggestedMin, max: 100, ticks: { stepSize: 10 } } }, 
+                plugins: { legend: { display: false } } 
+            }
+        });
+
+        togglesContainer.innerHTML = '';
+        metricKeys.forEach((key, index) => {
+            const button = document.createElement('button');
+            const lastScore = historyData[historyData.length-1][key];
+            const targetScore = targetData[key];
+            let emoji = '';
+            if(lastScore >= targetScore) {
+                emoji = '✅';
+            } else if (lastScore >= targetScore * 0.9) {
+                emoji = '⚠️';
+            } else {
+                emoji = '📉';
+            }
+            button.innerHTML = `<span>${key}</span><span>${emoji}</span>`;
+            
+            button.className = 'metric-toggle';
+            button.style.backgroundColor = colors[index % colors.length];
+            button.style.color = 'white';
+            button.style.borderColor = colors[index % colors.length];
+
+            button.addEventListener('click', () => {
+                const meta = chart.getDatasetMeta(index);
+                meta.hidden = !meta.hidden;
+                
+                if (meta.hidden) {
+                    button.classList.add('inactive');
+                    button.style.backgroundColor = '';
+                    button.style.color = '';
+                } else {
+                    button.classList.remove('inactive');
+                    button.style.backgroundColor = colors[index % colors.length];
+                    button.style.color = 'white';
+                }
+                chart.update();
+
+                const allHidden = chart.data.datasets.every((ds, i) => chart.getDatasetMeta(i).hidden);
+                if (allHidden) {
+                    document.getElementById(containerId).style.display = 'none';
+                }
+            });
+            togglesContainer.appendChild(button);
+        });
+
+        return chart;
+    }
+
+    function setupModal(modal, openBtnId, closeBtnIds) {
+        if (!modal) return;
+        const openBtn = document.getElementById(openBtnId);
+        if (openBtn) { openBtn.onclick = () => modal.classList.remove('hidden'); }
+        closeBtnIds.forEach(id => {
+            const closeBtn = document.getElementById(id);
+            if (closeBtn) { closeBtn.onclick = () => modal.classList.add('hidden'); }
+        });
+    }
+
+    function setupSwipeable(containerSelector) {
+        const container = document.querySelector(containerSelector);
+        if (!container) return;
+        const track = container.querySelector('.swipe-track');
+        const dotsContainer = container.querySelector('.swipe-dots');
+        if (!track || !dotsContainer) return;
+        const slides = Array.from(track.children);
+        if (slides.length <= 1) { dotsContainer.style.display = 'none'; return; }
+
+        let currentIndex = 0, isDragging = false, startPos = 0, currentTranslate = 0, prevTranslate = 0, animationID;
+        slides.forEach((_, i) => { const dot = document.createElement('button'); dot.classList.add('swipe-dot'); if (i === 0) dot.classList.add('active'); dot.addEventListener('click', () => { currentIndex = i; setPositionByIndex(); }); dotsContainer.appendChild(dot); });
+        const dots = Array.from(dotsContainer.children);
+        function updateDots() { dots.forEach(dot => dot.classList.remove('active')); dots[currentIndex].classList.add('active'); }
+        function setPositionByIndex() { currentTranslate = currentIndex * -slides[0].offsetWidth; prevTranslate = currentTranslate; setSliderPosition(); updateDots(); }
+        function setSliderPosition() { track.style.transform = `translateX(${currentTranslate}px)`; }
+        function touchStart(index) { return function(event) { if (window.innerWidth >= 1024) return; currentIndex = index; startPos = getPositionX(event); isDragging = true; animationID = requestAnimationFrame(animation); track.style.transition = 'none'; } }
+        function touchMove(event) { if (isDragging && window.innerWidth < 1024) { const currentPosition = getPositionX(event); currentTranslate = prevTranslate + currentPosition - startPos; } }
+        function touchEnd() { if (!isDragging || window.innerWidth >= 1024) return; isDragging = false; cancelAnimationFrame(animationID); const movedBy = currentTranslate - prevTranslate; if (movedBy < -100 && currentIndex < slides.length - 1) currentIndex += 1; if (movedBy > 100 && currentIndex > 0) currentIndex -= 1; setPositionByIndex(); track.style.transition = 'transform 0.3s ease-out'; }
+        function getPositionX(event) { return event.type.includes('mouse') ? event.pageX : event.touches[0].clientX; }
+        function animation() { setSliderPosition(); if (isDragging) requestAnimationFrame(animation); }
+        slides.forEach((slide, index) => { slide.addEventListener('dragstart', (e) => e.preventDefault()); slide.addEventListener('touchstart', touchStart(index), {passive: true}); slide.addEventListener('touchend', touchEnd); slide.addEventListener('touchmove', touchMove, {passive: true}); });
+        window.addEventListener('resize', () => { if (window.innerWidth >= 1024) { track.style.transform = ''; } else { setPositionByIndex(); } });
+    }
+
+    function generatePdf(loaderElement) {
+        const element = document.getElementById('reportContent');
+        const pageBreak = element.querySelector('.page-break-pdf');
+        const actionButtons = document.getElementById('actionButtons');
+        const previouslyActiveTrends = [];
+
+        const toggleButtonSelectors = [
+            { buttonId: 'toggleBrainTrendBtn', containerId: 'brainTrendContainer', chartKey: 'brain' },
+            { buttonId: 'togglePhysicalTrendBtn', containerId: 'physicalTrendContainer', chartKey: 'physical' }
+        ];
+
+        toggleButtonSelectors.forEach(({ buttonId, containerId, chartKey }) => {
+            const toggleBtn = document.getElementById(buttonId);
+            const container = document.getElementById(containerId);
+            if (container && container.style.display === 'block') {
+                previouslyActiveTrends.push(chartKey);
+            } else if (toggleBtn && container && userData.isPremium) {
+                toggleBtn.click();
+            }
+        });
+
+        const opt = {
+            margin:       [8, 10, 10, 10],
+            filename:     `NoiPod_Report_${userData.userName}_${userData.reportDate}.pdf`,
+            image:        { type: 'jpeg', quality: 0.95 },
+            html2canvas:  { 
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                windowWidth: element.scrollWidth
+            },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['css', 'legacy'] }
+        };
+
+        if (loaderElement) loaderElement.style.display = 'flex';
+        document.body.classList.add('pdf-mode');
+        const previousScroll = window.pageYOffset;
+        window.scrollTo({ top: 0, behavior: 'auto' });
+        if (pageBreak) pageBreak.style.display = 'block';
+        if (actionButtons) actionButtons.style.display = 'none';
+
+        const chartInstances = Chart.instances instanceof Map
+            ? Array.from(Chart.instances.values())
+            : Object.values(Chart.instances || {});
+        chartInstances.forEach(instance => {
+            if (instance && typeof instance.resize === 'function') {
+                instance.resize();
+            }
+        });
+
+        html2pdf().from(element).set(opt).save().then(() => {
+            cleanupPdfState();
+        }).catch(error => {
+            console.error('Error generating PDF:', error);
+            cleanupPdfState();
+        });
+
+        function cleanupPdfState() {
+            if (loaderElement) loaderElement.style.display = 'none';
+            document.body.classList.remove('pdf-mode');
+            if (pageBreak) pageBreak.style.display = 'none';
+            if (actionButtons) actionButtons.style.display = '';
+            window.scrollTo({ top: previousScroll, behavior: 'auto' });
+            toggleButtonSelectors.forEach(({ buttonId, containerId, chartKey }) => {
+                const container = document.getElementById(containerId);
+                if (!previouslyActiveTrends.includes(chartKey) && container && container.style.display === 'block') {
+                    document.getElementById(buttonId)?.click();
+                }
+            });
+        }
+    }
+    </script>
+</body>
+</html>
